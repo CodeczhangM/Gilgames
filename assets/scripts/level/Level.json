@@ -1,0 +1,60 @@
+{
+    "levelId": 1,
+    "info": {
+      "bgScrollSpeed": 1.2,
+      "layers": 3,
+      "initialMeteorCount": 8
+    },
+    "events": [
+    { "time": 2.0, "type": "Dialogue", "payload": { "speaker": "AI", "text": "小心前方！" } },
+    { "time": 5.5, "type": "BgmChange", "payload": { "bgm": "boss_theme", "fadeTime": 1.0 } },
+    { "time": 6.0, "type": "ScreenShake", "payload": { "duration": 0.6, "amplitude": 12 } }
+    ],
+    "enemyResources": {
+      "Meteor": { "prefab": "prefabs/enemy/meteor", "audio": "audio/meteor_spawn" },
+      "Fighter": { "prefab": "prefabs/enemy/fighter" },
+      "Shooter": { "prefab": "prefabs/enemy/shooter" },
+      "Elite": { "prefab": "prefabs/enemy/elite" },
+      "Boss": { "prefab": "prefabs/boss/boss_01", "audio": "audio/boss_roar" }
+    },
+    "defaultDrops": [
+      { "type": "Coin", "chance": 0.6 },
+      { "type": "Health", "chance": 0.1 }
+    ],
+    "waves": [
+      {
+        "startTime": 0,
+        "spawns": [
+          { "type": "Meteor", "count": 10, "interval": 0.3, "pathId": 1 },
+          { "type": "Fighter", "count": 5, "interval": 0.8, "pathId": 2 }
+        ]
+      },
+      {
+        "startTime": 12,
+        "spawns": [
+          { "type": "Shooter", "count": 6, "interval": 1.0, "pathId": 3 },
+          {
+            "type": "Elite",
+            "count": 2,
+            "interval": 2.0,
+            "pathId": 4,
+            "drops": [
+              { "type": "WeaponUpgrade", "chance": 0.35 },
+              { "type": "Coin", "chance": 0.9 }
+            ]
+          }
+        ]
+      }
+    ],
+    "boss": {
+      "type": "Boss",
+      "resource": { "prefab": "prefabs/boss/boss_01", "audio": "audio/boss_roar" },
+      "appearTime": 30,
+      "hpMultiplier": 2.5,
+      "drops": [
+        { "type": "WeaponUpgrade", "chance": 1.0 },
+        { "type": "Coin", "chance": 1.0 },
+        { "type": "Health", "chance": 0.5 }
+      ]
+    }
+  }
