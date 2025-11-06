@@ -4,6 +4,8 @@ import { ObjectPool } from './ObjectPool';
 import { EnemyBase } from './EnemyBase';
 import { PlayerActor } from './PlayerActor';
 import { ProjectileMover } from './ProjectileMover';
+import { DamageDealer, DamageFaction } from './DamageDealer';
+import { CollisionLayer, CollisionHelper, CollisionManager } from './CollisionLayers';
 const { ccclass, property } = _decorator;
 
 export enum BulletType {
@@ -53,7 +55,16 @@ export class Bullet extends Component {
     onEnable() {
         this._elapsed = 0;
         if (!this.mover) this.mover = this.getComponent(ProjectileMover);
+        this.setupCollisionLayer();
         this.attachCollider();
+    }
+
+    private setupCollisionLayer() {
+        // 根据阵营设置碰撞层
+        const layer = this.faction === BulletFaction.Player 
+            ? CollisionLayer.PlayerBullet 
+            : CollisionLayer.EnemyBullet;
+        CollisionHelper.setCollisionLayer(this.node, layer);
     }
 
     onDisable() {
@@ -98,24 +109,27 @@ export class Bullet extends Component {
     }
 
     private onBeginContact2D(self: Collider2D, other: Collider2D, contact: IPhysics2DContact | null) {
-        // 玩家子弹命中敌人
-        if (this.faction === BulletFaction.Player) {
-            const enemy = this.findComponentInNodeOrParent<EnemyBase>(other.node, EnemyBase);
-            if (enemy && enemy.isAlive()) {
-                enemy.takeDamage(this.damage, this);
-                this.onHitTarget();
-                return;
-            }
+        // 验证碰撞层是否匹配
+        const otherLayer = CollisionHelper.getCollisionLayer(other.node);
+        if (otherLayer === null) return;
+
+        const bulletLayer = this.faction === BulletFaction.Player 
+            ? CollisionLayer.PlayerBullet 
+            : CollisionLayer.EnemyBullet;
+
+        // 检查是否可以碰撞
+        if (!CollisionManager.canCollide(bulletLayer, otherLayer)) {
+            return;
         }
-        // 敌人子弹命中玩家
-        if (this.faction === BulletFaction.Enemy) {
-            const player = this.findComponentInNodeOrParent<PlayerActor>(other.node, PlayerActor);
-            if (player && player.getState && player.getState() === 'Alive' as any) {
-                const now = performance.now() / 1000;
-                player.takeDamage(this.damage, now);
-                this.onHitTarget();
-                return;
-            }
+
+        // 处理伤害
+        const applied = DamageDealer.dealDamage(other.node, this.damage, {
+            source: this,
+            faction: this.faction === BulletFaction.Player ? DamageFaction.Player : DamageFaction.Enemy,
+            now: performance.now() / 1000,
+        });
+        if (applied) {
+            this.onHitTarget();
         }
     }
 

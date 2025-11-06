@@ -10,9 +10,15 @@ export enum EnemyType {
 }
 
 export enum DropType {
-    WeaponUpgrade = 'WeaponUpgrade',
-    Coin = 'Coin',
-    Health = 'Health'
+    WeaponUpgrade = 'WeaponUpgrade', // 武器升级（通用）
+    WeaponStraight = 'WeaponStraight', // 直线武器
+    WeaponSpread = 'WeaponSpread', // 散射武器
+    WeaponHoming = 'WeaponHoming', // 追踪武器
+    WeaponLaser = 'WeaponLaser', // 激光武器
+    WeaponRocket = 'WeaponRocket', // 火箭武器
+    Coin = 'Coin', // 金币
+    Health = 'Health', // 生命恢复
+    Shield = 'Shield', // 护盾
 }
 
 // 敌人资源定义，可根据需要扩展（prefab、sprite、audio等）
@@ -25,7 +31,9 @@ export interface EnemyResource {
 // 掉落定义：类型 + 概率（0~1）
 export interface EnemyDropItem {
     type: DropType;
-    chance: number; // 0~1 概率
+    chance: number; // 0~1 概率，1.0 表示必定掉落（如Boss固定掉落）
+    count?: number; // 掉落数量（默认1）
+    data?: Record<string, any>; // 额外数据（如武器类型、等级等）
 }
 
 // 单批次刷怪配置

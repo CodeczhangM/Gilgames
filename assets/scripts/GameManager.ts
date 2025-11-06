@@ -1,5 +1,10 @@
-import { _decorator, Component, EventTarget } from 'cc';
+import { _decorator, Component, EventTarget, Node } from 'cc';
 import { PlayerActor } from './core/PlayerActor';
+import { ScoreSystem } from './utils/ScoreSystem';
+import { DropSystem } from './utils/DropSystem';
+import { EnemyBase } from './core/EnemyBase';
+import { LevelData } from './level/LevelData';
+import { CollisionManager } from './core/CollisionLayers';
 const { ccclass, property } = _decorator;
 
 @ccclass('GameManager')
@@ -14,6 +19,14 @@ export class GameManager extends Component {
 	private currentScene: string | null = null;
 	private currentLevelId: number | null = null;
 
+	@property(ScoreSystem)
+	scoreSystem: ScoreSystem | null = null;
+
+	@property(DropSystem)
+	dropSystem: DropSystem | null = null;
+
+	private currentLevelData: LevelData | null = null;
+
 	public static get instance(): GameManager {
 		if (!this._instance) {
 			this._instance = new GameManager();
@@ -23,6 +36,17 @@ export class GameManager extends Component {
 
 	onLoad(): void {
 		GameManager._instance = this;
+		// 初始化碰撞管理器
+		CollisionManager.initialize();
+		CollisionManager.configurePhysicsGroups();
+		// 初始化积分系统
+		if (!this.scoreSystem) {
+			this.scoreSystem = this.getComponent(ScoreSystem) || this.node.getComponentInChildren(ScoreSystem);
+		}
+		// 初始化掉落系统
+		if (!this.dropSystem) {
+			this.dropSystem = this.getComponent(DropSystem) || this.node.getComponentInChildren(DropSystem);
+		}
 	}
 
 	onDestroy(): void {
@@ -44,6 +68,7 @@ export class GameManager extends Component {
 		this.eventBus.emit(event, data);
 	}
 
+	// ========== 玩家管理 ==========
 	// 绑定玩家事件到全局
 	public registerPlayer(player: PlayerActor): void {
 		player.off('die', this._onPlayerDie, this);
@@ -52,6 +77,93 @@ export class GameManager extends Component {
 		player.on('die', this._onPlayerDie, this);
 		player.on('hit', this._onPlayerHit, this);
 		player.on('heal', this._onPlayerHeal, this);
+	}
+
+	// ========== 积分系统管理 ==========
+	/**
+	 * 获取积分系统
+	 */
+	public getScoreSystem(): ScoreSystem | null {
+		return this.scoreSystem;
+	}
+
+	/**
+	 * 设置积分系统
+	 */
+	public setScoreSystem(scoreSystem: ScoreSystem): void {
+		this.scoreSystem = scoreSystem;
+	}
+
+	// ========== 掉落系统管理 ==========
+	/**
+	 * 获取掉落系统
+	 */
+	public getDropSystem(): DropSystem | null {
+		return this.dropSystem;
+	}
+
+	/**
+	 * 设置掉落系统
+	 */
+	public setDropSystem(dropSystem: DropSystem): void {
+		this.dropSystem = dropSystem;
+	}
+
+	/**
+	 * 设置当前关卡数据（同时更新掉落系统）
+	 */
+	public setLevelData(levelData: LevelData): void {
+		this.currentLevelData = levelData;
+		if (this.dropSystem) {
+			this.dropSystem.setLevelData(levelData);
+		}
+	}
+
+	/**
+	 * 获取当前关卡数据
+	 */
+	public getLevelData(): LevelData | null {
+		return this.currentLevelData;
+	}
+
+	// ========== 敌人管理 ==========
+	/**
+	 * 注册敌人死亡监听（自动连接积分系统）
+	 */
+	public registerEnemy(enemyNode: Node): void {
+		if (!this.scoreSystem) return;
+		const enemy = enemyNode.getComponent(EnemyBase);
+		if (!enemy) return;
+
+		enemy.on('die', (data: any) => {
+			// 检查击杀来源是否是玩家
+			const source = data?.source;
+			if (this.isPlayerSource(source)) {
+				const baseScore = enemy.killScore || this.scoreSystem!.baseKillScore;
+				const enemyType = enemy.constructor.name;
+				this.scoreSystem!.addKillScore(baseScore, enemyType);
+			}
+		}, this);
+	}
+
+	/**
+	 * 批量注册敌人（用于对象池）
+	 */
+	public registerEnemyPool(enemyPool: Node[]): void {
+		enemyPool.forEach(enemy => {
+			if (enemy) {
+				this.registerEnemy(enemy);
+			}
+		});
+	}
+
+	private isPlayerSource(source: any): boolean {
+		if (!source) return false;
+		// 检查是否是 Bullet 组件且 faction 为 Player
+		if (source.constructor.name === 'Bullet') {
+			return (source as any).faction === 'Player' || (source as any).faction?.toString() === 'Player';
+		}
+		return false;
 	}
 
 	private _onPlayerDie = async () => {
@@ -172,6 +284,10 @@ export class GameManager extends Component {
 	protected async onLevelDidStart(levelId: number, options?: Record<string, any>): Promise<void> {
 		// 示例：记录日志、可接入 HUD/UI 初始化
 		console.log(`[GameManager] Level ${levelId} started`, options || {});
+		// 如果options中包含LevelData，设置到掉落系统
+		if (options?.levelData && options.levelData instanceof LevelData) {
+			this.setLevelData(options.levelData);
+		}
 	}
 
 	protected async onLevelWillComplete(levelId: number, result?: Record<string, any>): Promise<void> {

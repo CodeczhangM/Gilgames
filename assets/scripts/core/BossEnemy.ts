@@ -24,6 +24,13 @@ export class BossEnemy extends EnemyBase {
         this._elapsed = 0;
         this._fireElapsed = 0;
         this._spawnPos.set(this.node.worldPosition);
+        // 标记为 Boss，保证掉落/流程正确
+        this.isBoss = true;
+        // 自动挂载 BossController（若缺失）
+        const ctrl = this.getComponent('BossController' as any);
+        if (!ctrl) {
+            this.addComponent('BossController' as any);
+        }
         // Boss 默认缓慢移动
         this.setMoveDirection(0, 0);
     }
@@ -67,7 +74,7 @@ export class BossEnemy extends EnemyBase {
     }
 
     protected onDie() {
-        // 可加死亡演出/掉落
+        // 胜利触发由 BossController 负责，这里仅保留死亡演出/掉落等
     }
 
     private onPhaseChanged(phase: number) {
